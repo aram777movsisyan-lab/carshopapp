@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 min-h-screen;
+}
+
+a {
+  @apply text-brand-600 hover:text-brand-700;
+}
+
+input, textarea, select {
+  @apply border border-gray-300 rounded-md px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500;
+}
+
+button:disabled {
+  @apply opacity-60 cursor-not-allowed;
+}

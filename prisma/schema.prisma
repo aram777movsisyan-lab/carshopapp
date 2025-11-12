@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  SHOP_OWNER
+  ADMIN
+}
+
+enum ListingType {
+  CAR
+  PART
+  SERVICE
+}
+
+enum ListingCondition {
+  NEW
+  USED
+}
+
+enum ModCategory {
+  SUSPENSION
+  ENGINE
+  COSMETIC
+  INTERIOR
+  EXHAUST
+  OTHER
+}
+
+enum ServiceCategory {
+  MAINTENANCE
+  DETAILING
+  TUNING
+  PERFORMANCE
+  DIAGNOSTICS
+  OTHER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum EventCategory {
+  MEET
+  SHOW
+  TRACK
+  CRUISE
+}
+
+enum AttendanceStatus {
+  GOING
+  INTERESTED
+}
+
+enum ReviewTargetType {
+  SHOP
+  EVENT
+}
+
+enum FavoriteTargetType {
+  CAR
+  LISTING
+  SHOP
+  EVENT
+}
+
+model User {
+  id           String      @id @default(uuid())
+  name         String
+  username     String      @unique
+  email        String      @unique
+  passwordHash String
+  avatarUrl    String?
+  bio          String?     @db.Text
+  city         String?
+  country      String?
+  role         Role        @default(USER)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  cars         Car[]
+  listings     Listing[]   @relation("UserListings")
+  shops        Shop[]      @relation("UserShops")
+  bookings     Booking[]   @relation("UserBookings")
+  reviews      Review[]    @relation("UserReviews")
+  favorites    Favorite[]
+  messages     Message[]   @relation("UserMessages")
+  conversations ConversationParticipant[]
+  events       Event[]     @relation("UserEvents")
+  sessions     Session[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
+model Car {
+  id           String   @id @default(uuid())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String
+  make         String
+  model        String
+  year         Int
+  trim         String?
+  color        String?
+  nickname     String?
+  mileage      Int?
+  transmission String?
+  drivetrain   String?
+  engine       String?
+  mainPhotoUrl String?
+  tags         String[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  mods      Mod[]
+  listings  Listing[] @relation("CarListings")
+}
+
+model Mod {
+  id          String      @id @default(uuid())
+  car         Car         @relation(fields: [carId], references: [id], onDelete: Cascade)
+  carId       String
+  title       String
+  description String?     @db.Text
+  category    ModCategory
+  installedAt DateTime?
+  cost        Decimal?    @db.Decimal(10, 2)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Listing {
+  id           String          @id @default(uuid())
+  seller       User            @relation("UserListings", fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerId     String
+  relatedCar   Car?            @relation("CarListings", fields: [relatedCarId], references: [id])
+  relatedCarId String?
+  type         ListingType
+  title        String
+  description  String          @db.Text
+  category     String
+  price        Decimal         @db.Decimal(12, 2)
+  currency     String          @default("USD")
+  condition    ListingCondition
+  city         String?
+  state        String?
+  country      String?
+  images       String[]
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  conversations Conversation[] @relation("ListingConversations")
+}
+
+model Shop {
+  id            String         @id @default(uuid())
+  owner         User           @relation("UserShops", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId       String
+  name          String
+  description   String?        @db.Text
+  address       String?
+  city          String?
+  state         String?
+  country       String?
+  latitude      Float?
+  longitude     Float?
+  phone         String?
+  website       String?
+  logoUrl       String?
+  ratingAverage Float?         @default(0)
+  ratingCount   Int            @default(0)
+  createdAt     DateTime       @default(now())
+
+  services      ServiceOffer[]
+  bookings      Booking[]      @relation("ShopBookings")
+  reviews       Review[]
+  conversations Conversation[] @relation("ShopConversations")
+}
+
+model ServiceOffer {
+  id             String          @id @default(uuid())
+  shop           Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId         String
+  title          String
+  description    String?         @db.Text
+  basePrice      Decimal?        @db.Decimal(10, 2)
+  durationMinutes Int?
+  category       ServiceCategory
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  bookings       Booking[]
+}
+
+model Booking {
+  id             String        @id @default(uuid())
+  user           User          @relation("UserBookings", fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+  shop           Shop          @relation("ShopBookings", fields: [shopId], references: [id])
+  shopId         String
+  serviceOffer   ServiceOffer? @relation(fields: [serviceOfferId], references: [id])
+  serviceOfferId String?
+  status         BookingStatus @default(PENDING)
+  scheduledAt    DateTime
+  notes          String?       @db.Text
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Event {
+  id             String           @id @default(uuid())
+  creator        User             @relation("UserEvents", fields: [creatorId], references: [id], onDelete: Cascade)
+  creatorId      String
+  title          String
+  description    String?          @db.Text
+  dateTimeStart  DateTime
+  dateTimeEnd    DateTime?
+  locationName   String?
+  address        String?
+  city           String?
+  state          String?
+  country        String?
+  latitude       Float?
+  longitude      Float?
+  coverImageUrl  String?
+  category       EventCategory
+  maxAttendees   Int?
+  ratingAverage  Float?          @default(0)
+  ratingCount    Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  attendees EventAttendee[]
+  reviews   Review[]
+}
+
+model EventAttendee {
+  id        String           @id @default(uuid())
+  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  eventId   String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  status    AttendanceStatus
+  createdAt DateTime         @default(now())
+
+  @@unique([eventId, userId])
+}
+
+model Conversation {
+  id            String                     @id @default(uuid())
+  listing       Listing?                   @relation("ListingConversations", fields: [listingId], references: [id])
+  listingId     String?
+  shop          Shop?                      @relation("ShopConversations", fields: [shopId], references: [id])
+  shopId        String?
+  createdAt     DateTime                   @default(now())
+
+  participants  ConversationParticipant[]
+  messages      Message[]
+}
+
+model ConversationParticipant {
+  id             String        @id @default(uuid())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  conversation   Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String
+  sender         User          @relation("UserMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId       String
+  content        String        @db.Text
+  createdAt      DateTime      @default(now())
+}
+
+model Review {
+  id          String           @id @default(uuid())
+  reviewer    User             @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  reviewerId  String
+  targetType  ReviewTargetType
+  targetId    String
+  rating      Int
+  title       String
+  body        String?          @db.Text
+  createdAt   DateTime         @default(now())
+
+  @@unique([reviewerId, targetType, targetId])
+}
+
+model Favorite {
+  id         String             @id @default(uuid())
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  targetType FavoriteTargetType
+  targetId   String
+  createdAt  DateTime           @default(now())
+
+  @@unique([userId, targetType, targetId])
+}
